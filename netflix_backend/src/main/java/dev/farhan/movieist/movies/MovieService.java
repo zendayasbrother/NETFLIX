@@ -18,4 +18,7 @@ public class MovieService {
     public Optional<Movie> findMovieByImdbId(String imdbId) {
         return repository.findMovieByImdbId(imdbId);
     }
+    public Movie createMovie(Movie movie) {
+    return repository.insert(movie);
+    }
 }
