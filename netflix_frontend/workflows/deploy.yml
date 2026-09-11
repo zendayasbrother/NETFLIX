@@ -1,20 +1,20 @@
-name: Build and Push Frontend to AWS ECR
+name: Build and Push Backend to AWS ECR
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'netflix_frontend/**'
-      - '.github/workflows/frontend.yml'
+      - 'netflix_backend/**'
+      - '.github/workflows/backend.yml'
 
 env:
   AWS_REGION: eu-north-1
-  ECR_REPOSITORY: netflix-frontend
+  ECR_REPOSITORY: netflix-backend
 
 jobs:
   build-and-push:
-    name: Build, Tag, and Push Frontend Image
+    name: Build, Tag, and Push Backend Image
     runs-on: ubuntu-latest
 
     steps:
@@ -32,11 +32,11 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push Frontend image to ECR
+      - name: Build and push Backend image to ECR
         uses: docker/build-push-action@v5
         with:
-          context: ./netflix_frontend
-          file: ./netflix_frontend/Dockerfile
+          context: ./netflix_backend
+          file: ./netflix_backend/Dockerfile
           push: true
           tags: |
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
