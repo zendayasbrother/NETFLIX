@@ -1,12 +1,21 @@
-name: Build and Push Backend to AWS ECR
+name: Build and Push Frontend to AWS ECR
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'netflix_backend/**'
-      - '.github/workflows/backend.yml'
+      - 'netflix_frontend/**'
+      - '.github/workflows/frontend.yml'
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'netflix_frontend/**'
+      - '.github/workflows/frontend.yml'
 
 env:
   AWS_REGION: eu-north-1
