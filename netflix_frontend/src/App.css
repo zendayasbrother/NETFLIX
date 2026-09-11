@@ -1,23 +1,3 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Quicksand&display=swap');
-
-*{
-  box-sizing: border-box;
-  font-family: 'Quicksand', Arial, Helvetica, sans-serif;
-}
-body{
-  padding:0;
-  margin:0;
-}
-.App{
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: black;
-  color:white;
-  margin-top:10px;
-} */
-
-/* Importing a Google Font for a clean sans-serif look like Netflix */
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
 
 * {
@@ -28,7 +8,7 @@ body{
 body {
     padding: 0;
     margin: 0;
-    background: #141414; /* Dark background color similar to Netflix */
+    background: #141414;
 }
 
 /* General app layout */
@@ -38,7 +18,7 @@ body {
     min-height: 100vh;
     background-color: #141414;
     color: white;
-    margin-top: 10px;
+    padding-top: 70px; /* Offset fixed header */
 }
 
 /* Header styles */
@@ -46,16 +26,17 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px;
+    padding: 10px 20px;
     position: fixed;
     top: 0;
-    width: 100%;
-    z-index: 100;
-    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.9);
 }
 
 header img {
-    width: 100px; /* Logo size */
+    width: 100px;
 }
 
 header a {
@@ -70,7 +51,7 @@ header a {
     background-size: cover;
     background-position: center center;
     height: 400px;
-    padding-top: 140px; /* Adjust based on banner image */
+    padding-top: 140px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -87,7 +68,7 @@ header a {
 .banner .button {
     margin-top: 20px;
     padding: 10px 20px;
-    background-color: #e50914; /* Red color for Netflix-style button */
+    background-color: #e50914;
     border: none;
     color: white;
     font-size: 16px;
@@ -119,7 +100,7 @@ header a {
 }
 
 .row .posters::-webkit-scrollbar {
-    display: none; /* Hide scrollbar */
+    display: none;
 }
 
 .row .posters img {
@@ -130,7 +111,7 @@ header a {
 }
 
 .row .posters img:hover {
-    transform: scale(1.08); /* Zoom effect when hovering over movies */
+    transform: scale(1.08);
 }
 
 /* Footer section */
