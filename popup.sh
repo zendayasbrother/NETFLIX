@@ -1,38 +1,43 @@
 #!/usr/bin/env bash
 
-# Exit immediately if a command fails
 set -e
 
-echo "=== Fixing Git Remote for NETFLIX ==="
+echo "=== Fixing Git Remote and Ownership for NETFLIX ==="
 
-# 1. Retrieve your authenticated GitHub username via SSH
-echo "--> Checking GitHub authentication..."
-GH_USER=$(ssh -T git@github.com 2>&1 | grep -oP 'Hi \K[^!]+' || true)
+# 1. Ask for your personal GitHub account username
+echo "--> Enter your PERSONAL GitHub username (the account where NETFLIX repo lives):"
+read -p "GitHub Username: " GH_USER
 
 if [ -z "$GH_USER" ]; then
-    echo "--> SSH Authentication failed or no key detected."
-    echo "--> Falling back: Please enter your personal GitHub username manually:"
-    read -p "Username: " GH_USER
-else
-    echo "--> Authenticated as GitHub user: $GH_USER"
+    echo "Error: Username cannot be empty."
+    exit 1
 fi
 
-# 2. Check current remote configuration
-echo "--> Current origin remote:"
+TARGET_REPO_URL="https://github.com/${GH_USER}/NETFLIX.git"
+
+# 2. Check and update the origin remote URL
+echo "--> Checking current origin remote..."
 git remote get-url origin || true
 
-# 3. Update the origin remote URL to point to your personal account
-NEW_REMOTE_URL="https://github.com/${GH_USER}/NETFLIX.git"
+echo "--> Updating 'origin' remote to point to: $TARGET_REPO_URL"
+git remote set-url origin "$TARGET_REPO_URL" || git remote add origin "$TARGET_REPO_URL"
 
-echo "--> Setting remote 'origin' to: $NEW_REMOTE_URL"
-git remote set-url origin "$NEW_REMOTE_URL"
-
-# 4. Verify updated remote URLs
-echo "--> Updated remote configuration:"
+# 3. Verify remote configuration
+echo "--> Updated Git Remotes:"
 git remote -v
 
-# 5. Test fetching from your repository
-echo "--> Testing connection by fetching from origin..."
-git fetch origin main
+# 4. Stage and commit local changes if any are pending
+if [[ -n $(git status -s) ]]; then
+    echo "--> Staging untracked/modified files..."
+    git add .
+    git commit -m "fix: update remote tracking and preserve monorepo state"
+else
+    echo "--> No uncommitted changes found."
+fi
 
-echo "=== Successfully updated remote! You can now run 'git pull origin main' or 'git push origin main'. ==="
+# 5. Push to your main branch
+echo "--> Pushing code to $TARGET_REPO_URL on branch main..."
+git branch -M main
+git push -u origin main
+
+echo "=== Success! Your remote URL is updated and your monorepo remains intact. ==="
