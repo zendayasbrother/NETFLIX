@@ -2,7 +2,7 @@
 
 A **production-grade monorepo** implementation of a Netflix-style streaming application. This project demonstrates comprehensive full-stack engineering with containerized microservices, automated CI/CD pipelines, cloud database orchestration, and infrastructure-as-code practices.
 
-## 🎯 Technical Architecture
+## Technical Architecture
 
 ### Technology Stack
 
