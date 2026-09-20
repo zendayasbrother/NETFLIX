@@ -1,285 +1,230 @@
-# Netflix Clone Monorepo: Full-Stack Cloud Deployment
+# Netflix Full-Stack Deployment
 
-A **production-grade monorepo** implementation of a Netflix-style streaming application. This project demonstrates comprehensive full-stack engineering with containerized microservices, automated CI/CD pipelines, cloud database orchestration, and infrastructure-as-code practices.
+This repository contains a full-stack Netflix-style application made up of a frontend and backend, deployed with Docker on AWS. The project documents my process of bringing two separate codebases together, connecting the application to MongoDB Atlas, automating image builds with GitHub Actions, and deploying the containers through Portainer.
 
-## Technical Architecture
+The repository is composed of:
 
-### Technology Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React SPA, React Router, Axios, Custom CSS |
-| **Backend** | Spring Boot (Java), Maven, REST API |
-| **Database** | MongoDB Atlas (AWS eu-north-1) |
-| **Containerization** | Docker, Docker Compose |
-| **CI/CD** | GitHub Actions, Amazon ECR |
-| **Infrastructure** | AWS (ECR, IAM, Secrets Manager) |
-
-### Language Composition
-- **JavaScript**: 43.5% (Frontend)
-- **Java**: 28.6% (Backend)
-- **CSS**: 14.7% (Styling)
-- **HTML**: 7.3% (Markup)
-- **Dockerfile**: 5.9% (Container Config)
+- **Frontend:** JavaScript, HTML and CSS
+- **Backend:** Java and Maven
+- **Database:** MongoDB Atlas
+- **Containerisation:** Docker
+- **CI/CD:** GitHub Actions and Amazon ECR
+- **Deployment:** AWS EC2 and Portainer
 
 ---
 
-## 📋 Deployment & Setup Guide
+## Phase 1 — Git and Initialising the Repository
 
-### Phase 1: Local Monorepo Initialization & Source Control
-
-I converted the individual upstream repositories into a unified monorepo architecture by consolidating Git histories and establishing a clean root repository.
-
-#### Cloned Upstream Repositories
-
-I started by cloning both the frontend and backend code from their original locations:
+I began by cloning the frontend and backend repositories into my VS Code workspace. I initially cloned both projects separately and accidentally created duplicate Git structures. To correct this, I removed the existing Git metadata and converted the two projects into one repository.
 
 ```bash
-git clone https://github.com/digitalwitchdemo/netflix_backend.git
-git clone https://github.com/digitalwitchdemo/netflix_frontend.git
-```
+git clone <original-backend-repository>
+git clone <original-frontend-repository>
 
-#### Initialized Root Repository
-
-I removed the existing nested Git instances to convert them into tracked directories:
-
-```bash
-rm -rf netflix_backend/.git netflix_frontend/.git
-```
-
-I then initialized the root repository and configured the remote origin:
-
-```bash
+rm -rf .git
 git init
 git branch -M main
 git remote add origin https://github.com/zendayasbrother/NETFLIX.git
-```
-
-I performed the initial cumulative commit and push:
-
-```bash
 git add .
-git commit -m "feat: setup monorepo structure for frontend and backend"
+git commit -m "Initial commit"
 git push -u origin main
 ```
 
-**Output:**
+This left me with a monorepo containing both application layers:
+
+```text
+NETFLIX/
+├── netflix_backend/
+└── netflix_frontend/
 ```
-Initialized empty Git repository in ./NETFLIX/.git/
-[main (root-commit) abc1234] feat: setup monorepo structure for frontend and backend
- 2 files changed, ...
-Enumerating objects: ..., done.
-Counting objects: 100% (...), done.
-Writing objects: 100% (...), done.
-```
+
+This stage was useful because it made the relationship between the frontend and backend clearer. Rather than managing two unrelated deployments, I could work from one repository and later build each part independently through its own workflow.
 
 ---
 
-### Phase 2: Database Provisioning (MongoDB Atlas)
+## Phase 2 — Deploying MongoDB
 
-I set up MongoDB Atlas as the cloud database solution for storing and managing the movie catalog.
+I created a MongoDB Atlas account and enabled multi-factor authentication before provisioning the database. I selected the free option, kept the cluster name as `Cluster0`, and allowed Atlas to provision the cluster on AWS in the `eu-north-1` region.
 
-#### Created the Cluster
+I then created a database and collection named `movies`. The collection was intended to store the application's movie data.
 
-I navigated to [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) and signed up with MFA enabled. I created a **free shared cluster** named `Cluster0` and selected **AWS** as the cloud provider, deploying to the `eu-north-1` region.
+From the **Drivers** connection method, I copied the MongoDB connection string and added it to the environment configuration used by the backend. The credentials and connection string were kept out of the source code.
 
-#### Configured Access Control
+Example configuration:
 
-I configured database user authentication by creating a database user with secure credentials. I restricted network IP access via IP Whitelist and downloaded the `.env` file for secure credential storage.
-
-#### Set Up Database & Collection
-
-I created a database named `movies` containing a `movies` collection to hold dynamic catalog records. The collection stores structured movie metadata with strict JSON schemas:
-
-```javascript
-// Collection: movies
-{
-  "imdbId": "tt1234567",
-  "title": "Example Movie",
-  "backdrops": ["url1", "url2"],
-  "genres": ["Action", "Sci-Fi"]
-}
+```env
+MONGO_DATABASE=movies
+MONGO_CLUSTER=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/movies?retryWrites=true&w=majority
 ```
 
-#### Added the Connection String
+I also installed Node.js and checked that both subdirectories contained their own `package.json` files. After reinstalling the required npm dependencies, I was able to run the frontend locally and continue testing the application.
 
-I copied the MongoDB connection string from the **Drivers** section and added it to my `.env` file:
-
-```bash
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/movies?retryWrites=true&w=majority
-```
-
-#### Verified Installation & Setup
-
-I installed Node.js and tested the connection by ensuring both `package.json` files existed in the backend and frontend subdirectories:
-
-```bash
-node --version  # Verified Node.js installation
-npm install     # Installed dependencies
-npm start       # Started the frontend server
-```
-
-**Troubleshooting:** Initially, I encountered issues running the frontend server. I resolved this by verifying that `package.json` files existed in both subdirectories and reinstalling npm to legitimize the installation.
+This phase showed me that the application could not be treated as only a frontend or backend exercise. The database had to be provisioned and configured before the backend could operate properly.
 
 ---
 
-### Phase 3: CI/CD Pipeline & Amazon ECR Integration
+## Phase 3 — GitHub Actions and Amazon ECR
 
-I engineered automated container deployment workflows using GitHub Actions to build Docker images and push them to AWS ECR on every push to `main`.
+The original backend workflow used GitLab configuration, so I changed the workflow to use GitHub Actions. The purpose of the workflow was to build Docker images and push them to Amazon Elastic Container Registry (ECR).
 
-#### Created AWS ECR Repositories
+I created two private ECR repositories:
 
-I navigated to the **AWS ECR Console** in the `eu-north-1` region and created two **private repositories**:
 - `netflix-backend`
 - `netflix-frontend`
 
-I left all settings on default, keeping both repositories private.
+I then added the required AWS values under **GitHub repository → Settings → Secrets and variables → Actions**. The credentials were stored as GitHub secrets so they were not written directly into the workflow files.
 
-#### Generated IAM & Secrets Configuration
+The workflow process was designed to:
 
-I generated programmatic access keys via the AWS IAM Console:
+1. Check out the repository.
+2. Configure AWS credentials.
+3. Log in to Amazon ECR.
+4. Build the relevant Docker image.
+5. Tag the image with the ECR repository address.
+6. Push the image to ECR.
 
-1. Went to **IAM Console > Users > [My IAM User]**
-2. Selected **Security Credentials > Generate Access Key > App running outside AWS**
-3. Copied both the Access Key ID and Secret Access Key
+The backend image followed this general pattern:
 
-I then registered these keys as **GitHub Repository Secrets**:
-
-1. Navigated to my repository: **Settings > Secrets and Variables > Actions**
-2. Created two new secrets:
-   - `AWS_ACCESS_KEY_ID` (pasted the Access Key ID)
-   - `AWS_SECRET_ACCESS_KEY` (pasted the Secret Access Key)
-
-**Example:**
-```
-Secret Name: AWS_ACCESS_KEY_ID
-Value: AKIAIOSFODNN7EXAMPLE
-
-Secret Name: AWS_SECRET_ACCESS_KEY
-Value: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```bash
+docker build -t netflix-backend:latest ./netflix_backend
+docker tag netflix-backend:latest <AWS_ACCOUNT_ID>.dkr.ecr.eu-north-1.amazonaws.com/netflix-backend:latest
+docker push <AWS_ACCOUNT_ID>.dkr.ecr.eu-north-1.amazonaws.com/netflix-backend:latest
 ```
 
-#### Created GitHub Actions Workflows
+The frontend used the same process, but pointed to `./netflix_frontend` and the `netflix-frontend` ECR repository.
 
-I created workflow files under `.github/workflows/` to handle continuous integration and automated image tagging.
-
-##### Backend Workflow
-
-I created `.github/workflows/backend.yml` to automate backend deployment:
-
-```yaml
-name: Deploy Backend to ECR
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'netflix_backend/**'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
-
-      - name: Login to Amazon ECR
-        run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com
-
-      - name: Build Docker image
-        run: docker build -t netflix-backend:latest ./netflix_backend
-
-      - name: Tag and push to ECR
-        run: |
-          docker tag netflix-backend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/netflix-backend:latest
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/netflix-backend:latest
-```
-
-##### Frontend Workflow
-
-I created `.github/workflows/frontend.yml` to automate frontend deployment:
-
-```yaml
-name: Deploy Frontend to ECR
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'netflix_frontend/**'
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
-
-      - name: Login to Amazon ECR
-        run: aws ecr get-login-password --region eu-north-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com
-
-      - name: Build Docker image
-        run: docker build -t netflix-frontend:latest ./netflix_frontend
-
-      - name: Tag and push to ECR
-        run: |
-          docker tag netflix-frontend:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/netflix-frontend:latest
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.eu-north-1.amazonaws.com/netflix-frontend:latest
-```
+I generated the AWS access keys through IAM and added them to GitHub as secrets. In retrospect, these credentials should be restricted to only the permissions required by the workflow, and any temporary or placeholder credentials should be removed or rotated after testing.
 
 ---
 
-## 🚀 Key Features & Engineering Practices
+## Phase 4 — Docker, Portainer and Deployment
 
-✅ **Monorepo Architecture** – Unified repository for frontend, backend, and configuration  
-✅ **Infrastructure as Code** – GitHub Actions workflows enable automated deployment  
-✅ **Cloud Database** – MongoDB Atlas provides scalability and high availability  
-✅ **Security** – AWS IAM roles, Secrets Manager, and IP whitelisting  
-✅ **CI/CD Automation** – Push-to-deploy pipeline with automatic image tagging  
+For the final phase, I created an Ubuntu-based EC2 instance to act as the Docker host. I selected a `t3.micro` instance and configured the security group to allow the traffic required by the application while restricting SSH access to my own IP address.
+
+The inbound rules were configured as follows:
+
+- **22 — SSH:** My IP only
+- **80 — HTTP:** Anywhere
+- **443 — HTTPS:** Anywhere
+- **5000 — Backend:** Anywhere, for testing the backend service
+
+Docker was already available in my environment. I also enabled Docker's WSL integration through Docker Desktop by going to **Resources → WSL Integration**, enabling integration, and selecting Ubuntu.
+
+I verified Docker from Ubuntu and installed Portainer with the following command:
+
+```bash
+wsl -d Ubuntu
+docker --version
+docker run -d \
+  -p 8000:8000 \
+  -p 9443:9443 \
+  --name portainer \
+  --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  portainer/portainer-ce:latest
+```
+
+I initially encountered a problem while creating the Portainer account and became stuck in a timeout loop. I removed the Portainer container and its data volume, then recreated it with an administrator password file:
+
+```bash
+docker rm -f portainer
+docker volume rm portainer_data
+
+echo -n "<PORTAINER_PASSWORD>" > /tmp/portainer_pass
+
+docker run -d \
+  -p 8000:8000 \
+  -p 9443:9443 \
+  --name portainer \
+  --restart=always \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v portainer_data:/data \
+  -v /tmp/portainer_pass:/tmp/portainer_pass \
+  portainer/portainer-ce:latest \
+  --admin-password-file=/tmp/portainer_pass
+```
+
+I then created a separate IAM user for Portainer and attached the `AmazonEC2ContainerRegistryFullAccess` policy so that Portainer could authenticate with ECR. In Portainer, I added the backend and frontend ECR repositories as registries and enabled authentication using the IAM access key and secret access key.
+
+Finally, I created a cumulative Portainer stack referencing both ECR images and the MongoDB configuration. The stack allowed the frontend and backend containers to run together on the Docker host while the backend connected to MongoDB Atlas.
+
+A simplified version of the stack configuration was:
+
+```yaml
+services:
+  backend:
+    image: <AWS_ACCOUNT_ID>.dkr.ecr.eu-north-1.amazonaws.com/netflix-backend:latest
+    container_name: netflix-backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_CLUSTER: ${MONGO_CLUSTER}
+
+  frontend:
+    image: <AWS_ACCOUNT_ID>.dkr.ecr.eu-north-1.amazonaws.com/netflix-frontend:latest
+    container_name: netflix-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+```
+
+The actual port mappings must match the ports exposed by the Dockerfiles and the ports used by the Spring Boot application. After deploying the stack, I checked Portainer to confirm that both containers were running and used their logs to identify any startup or connection problems.
+
+The resulting deployment flow was:
+
+```text
+GitHub
+   ↓
+GitHub Actions
+   ↓
+Amazon ECR
+   ↓
+Portainer on AWS EC2
+   ↓
+Frontend and backend containers
+   ↓
+MongoDB Atlas
+```
+
+This final phase brought together the earlier work. GitHub stored the code, Actions built and published the images, ECR stored the private images, Portainer pulled and managed them, and MongoDB Atlas provided the application's persistent data layer.
 
 ---
 
-## 📂 Repository Structure
+## Reflection
 
-```
+The deployment was not completely linear. I had to correct the initial Git setup, troubleshoot the frontend dependencies, convert the workflow from GitLab to GitHub Actions, and resolve the Portainer setup timeout. Each problem made the architecture clearer and helped me understand how the individual services depended on one another.
+
+The most important lessons were:
+
+- A monorepo needs one clear Git root when multiple applications are managed together.
+- Database provisioning and network access must be completed before the backend can be tested reliably.
+- GitHub Actions secrets and AWS IAM permissions need to be configured deliberately.
+- Docker image ports, application ports, and EC2 security-group ports must all agree.
+- Deployment credentials and database credentials should never be committed to the repository.
+- Portainer provides a practical interface for pulling and managing private container images on an EC2 Docker host.
+
+For a production deployment, I would further restrict IAM permissions, avoid exposing the backend directly where possible, use HTTPS with a domain and reverse proxy, and rotate any credentials used during development or testing.
+
+---
+
+## Repository Structure
+
+```text
 NETFLIX/
-├── netflix_backend/          # Spring Boot microservices
-│   ├── src/
-│   ├── Dockerfile
-│   └── pom.xml
-├── netflix_frontend/         # React SPA
-│   ├── src/
-│   ├── Dockerfile
-│   └── package.json
+├── netflix_backend/
+├── netflix_frontend/
 ├── .github/
 │   └── workflows/
-│       ├── backend.yml
-│       └── frontend.yml
 └── README.md
 ```
 
 ---
 
-## 📝 License
+## Security Note
 
-This project is open-source and available under the MIT License.
-
----
-
-**Built with ❤️ by [zendayasbrother](https://github.com/zendayasbrother)**
+Do not commit real MongoDB connection strings, AWS access keys, Portainer passwords, or other credentials. Replace the placeholders in this document with environment variables or GitHub/AWS secrets when configuring the application.
