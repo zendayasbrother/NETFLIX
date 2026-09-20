@@ -1,26 +1,27 @@
-# Use an official Node.js runtime as a parent image
-FROM node:18-alpine
+# Stage 1: Build the React Application
+FROM node:22-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first to install dependencies
+# Copy package files and install dependencies cleanly
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install
-
-# Copy the rest of the application
+# Copy source files and build
 COPY . .
-
-# Build the React app for production
 RUN npm run build
 
-# Serve the app using a simple static file server (e.g., serve)
-RUN npm install -g serve
+# Stage 2: Production Web Server
+FROM nginx:alpine
 
-# Expose port 3000 (the port that the React app will run on)
-EXPOSE 3000
+# Upgrade packages to patch OS-level Alpine vulnerabilities
+RUN apk update && apk upgrade --no-cache
 
-# Command to run the app using the static file server
-CMD ["serve", "-s", "build", "-l", "3000"]
+# Copy built static files from builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Expose default HTTP port
+EXPOSE 80
+
+# Run Nginx in foreground
+CMD ["nginx", "-g", "daemon off;"]
